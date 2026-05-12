@@ -3,35 +3,33 @@ name: Build Custom Debian ISO
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch: # Supaya bisa di-click run manual dari web GitHub
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # JALANKAN LANGSUNG DI DALAM CONTAINER DEBIAN STERIL
+    container:
+      image: debian:bookworm
+      options: --privileged # Wajib untuk loop-mounting di dalam container
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Install Build Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y live-build xorriso squashfs-tools
+          apt-get update
+          apt-get install -y live-build xorriso squashfs-tools curl sudo
 
       - name: Run Live-Build
         run: |
-          sudo lb clean --all
-          
-          sudo lb config \
+          lb clean --all
+          lb config \
             --mode debian \
             --distribution bookworm \
-            --binary-images iso-hybrid \
             --architectures amd64 \
-            --mirror-bootstrap "http://deb.debian.org/debian/" \
-            --mirror-chroot "http://deb.debian.org/debian/" \
-            --mirror-binary "http://deb.debian.org/debian/" \
-            --security false
-            
-          sudo lb build --verbose
+            --archive-areas "main contrib non-free non-free-firmware"
+          lb build --verbose
 
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
