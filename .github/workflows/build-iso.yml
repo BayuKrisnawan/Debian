@@ -29,7 +29,7 @@ jobs:
             --mirror-binary "http://deb.debian.org/debian/" \
             --mirror-chroot-security "http://security.debian.org/debian-security" \
             --mirror-binary-security "http://security.debian.org/debian-security"
-          sudo lb build
+          sudo lb build --verbose
 
       - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
