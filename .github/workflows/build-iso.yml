@@ -1,0 +1,30 @@
+name: Build Custom Debian ISO
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch: # Supaya bisa di-click run manual dari web GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build xorriso squashfs-tools
+
+      - name: Run Live-Build
+        run: |
+          sudo lb clean --all
+          sudo lb config
+          sudo lb build
+
+      - name: Upload ISO Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-debian-docker-iso
+          path: "*.iso"
