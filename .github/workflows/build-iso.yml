@@ -8,10 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # JALANKAN LANGSUNG DI DALAM CONTAINER DEBIAN STERIL
     container:
       image: debian:bookworm
-      options: --privileged # Wajib untuk loop-mounting di dalam container
+      options: --privileged
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,22 +24,40 @@ jobs:
         run: |
           lb clean --all
 
-          # INJECT REPOSITORI DOCKER CE SECARA PAKSA LEWAT PIPELINE
-          mkdir -p config/repositories
-          
-          # 1. Download kunci resmi GPG Docker langsung ke direktori live-build
-          curl -fsSL https://download.docker.com/linux/debian/gpg -o config/repositories/docker.key.chroot
-          
-          # 2. Buat file list repositori Docker khusus untuk chroot target
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.key.chroot] https://download.docker.com/linux/debian bookworm stable" > config/repositories/docker.list.chroot
-
-          # Jalankan konfigurasi live-build standar
+          # 1. Jalankan lb config standar untuk membuat struktur dasar folder
           lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --archive-areas "main contrib non-free non-free-firmware"
-            
+
+          # 2. INJECT HOOK UNTUK SETUP REPOSITORI DOCKER DI DALAM CHROOT
+          mkdir -p config/hooks/live
+          
+          cat << 'EOF' > config/hooks/live/0000-setup-docker-repo.chroot
+          #!/bin/sh
+          set -e
+
+          # Install dependensi dasar yang dibutuhkan apt transport di dalam chroot
+          apt-get update
+          apt-get install -y ca-certificates curl gnupg
+
+          # Unduh dan pasang kunci GPG resmi Docker di lokasi modern keyring
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          chmod a+r /etc/apt/keyrings/docker.gpg
+
+          # Tambahkan repositori resmi Docker CE ke sources.list.d target
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list
+
+          # Update indeks paket agar docker-ce langsung dikenali di fasa berikutnya
+          apt-get update
+          EOF
+
+          # 3. WAJIB: Berikan hak akses eksekusi (+x) pada file hook agar mau berjalan
+          chmod +x config/hooks/live/0000-setup-docker-repo.chroot
+
+          # 4. Mulai proses pembangunan ISO
           lb build --verbose
 
       - name: Upload ISO Artifact
