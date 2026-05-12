@@ -24,11 +24,23 @@ jobs:
       - name: Run Live-Build
         run: |
           lb clean --all
+
+          # INJECT REPOSITORI DOCKER CE SECARA PAKSA LEWAT PIPELINE
+          mkdir -p config/repositories
+          
+          # 1. Download kunci resmi GPG Docker langsung ke direktori live-build
+          curl -fsSL https://download.docker.com/linux/debian/gpg -o config/repositories/docker.key.chroot
+          
+          # 2. Buat file list repositori Docker khusus untuk chroot target
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.key.chroot] https://download.docker.com/linux/debian bookworm stable" > config/repositories/docker.list.chroot
+
+          # Jalankan konfigurasi live-build standar
           lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --archive-areas "main contrib non-free non-free-firmware"
+            
           lb build --verbose
 
       - name: Upload ISO Artifact
