@@ -20,7 +20,13 @@ jobs:
       - name: Run Live-Build
         run: |
           sudo lb clean --all
-          sudo lb config
+          sudo lb config \
+            --distribution bookworm \
+            --binary-images iso-hybrid \
+            --architectures amd64 \
+            --mirror-bootstrap "http://deb.debian.org/debian/" \
+            --mirror-chroot "http://deb.debian.org/debian/" \
+            --mirror-binary "http://deb.debian.org/debian/"
           sudo lb build
 
       - name: Upload ISO Artifact
